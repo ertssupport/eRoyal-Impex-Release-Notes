@@ -36,7 +36,7 @@ const COLUMNS = {
 };
 
 // Column header expected in the License Numbers sheet.
-const LICENSE_COLUMN = "License_ Number";
+const LICENSE_COLUMN = "License_Number";
 
 /* ============================================================
    State
