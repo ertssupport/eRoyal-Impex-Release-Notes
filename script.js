@@ -1,30 +1,15 @@
 /* ============================================================
    Release Notes Portal — script.js
-   ------------------------------------------------------------
-   EDIT THE CONFIG BLOCK BELOW to point at your own Google
-   Sheets CSV export URLs and, if your column headers differ,
-   update COLUMNS to match. See README.md for full setup steps.
    ============================================================ */
 
 const CONFIG = {
-  // Paste the "Publish to web" CSV URL for your Release Notes sheet.
   RELEASE_NOTES_CSV_URL: "./Release_Notes.csv",
-
-  // Paste the "Publish to web" CSV URL for your Valid License Numbers sheet.
   LICENSE_CSV_URL: "./LicenseNumber-LICENSE_NUMBERS.csv",
-
-  // License number that unlocks the dual Internal/External doc view.
   SPECIAL_LICENSE: "ERI00001",
-
   ROWS_PER_PAGE: 10,
-
-  // sessionStorage key used to remember a validated license for this tab session.
   SESSION_KEY: "rnp_license",
 };
 
-// Column headers expected in the Release Notes sheet.
-// Rename the values (right-hand side) if your sheet uses different headers —
-// keep the left-hand keys unchanged, since the rest of the script refers to them.
 const COLUMNS = {
   DATE: "Release Date",
   MODULE: "Module",
@@ -35,13 +20,9 @@ const COLUMNS = {
   DOC_EXTERNAL: "External Doc Link",
 };
 
-// Column header expected in the License Numbers sheet.
 const LICENSE_COLUMN = "License_Number";
 
-/* ============================================================
-   State
-   ============================================================ */
-
+/* State Management */
 const state = {
   license: null,
   isSpecialLicense: false,
@@ -49,12 +30,10 @@ const state = {
   filteredNotes: [],
   currentPage: 1,
   searchTerm: "",
+  activeNote: null
 };
 
-/* ============================================================
-   DOM references
-   ============================================================ */
-
+/* DOM References */
 const el = {
   gateScreen: document.getElementById("gate-screen"),
   gateForm: document.getElementById("gate-form"),
@@ -81,10 +60,7 @@ const el = {
   frameExternal: document.getElementById("modal-frame-external"),
 };
 
-/* ============================================================
-   Init
-   ============================================================ */
-
+/* Initialization */
 document.addEventListener("DOMContentLoaded", () => {
   wireGate();
   wireModal();
@@ -96,10 +72,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 });
 
-/* ============================================================
-   License gate
-   ============================================================ */
-
+/* License Gate */
 function wireGate() {
   el.gateForm.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -114,12 +87,12 @@ function wireGate() {
       if (matched) {
         enterPortal(matched);
       } else {
-        showGateError("Invalid Company License Number");
-        showToast("Invalid Company License Number", true);
+        showGateError("Invalid License Number");
+        showToast("Invalid License Number", true);
       }
     } catch (err) {
       console.error(err);
-      showGateError("Couldn't verify your license right now. Please try again.");
+      showGateError("Verification failed. Please try again.");
     } finally {
       setGateBusy(false);
     }
@@ -133,7 +106,7 @@ async function validateLicense(value) {
   for (const row of rows) {
     const candidate = (row[LICENSE_COLUMN] ?? "").toString().trim();
     if (candidate && candidate.toLowerCase() === target) {
-      return candidate; // return the sheet's canonical casing/value
+      return candidate;
     }
   }
   return null;
@@ -141,7 +114,7 @@ async function validateLicense(value) {
 
 function enterPortal(licenseValue) {
   state.license = licenseValue;
-  state.isSpecialLicense = licenseValue === CONFIG.SPECIAL_LICENSE;
+  state.isSpecialLicense = licenseValue.toUpperCase() === CONFIG.SPECIAL_LICENSE.toUpperCase();
 
   sessionStorage.setItem(CONFIG.SESSION_KEY, licenseValue);
 
@@ -154,8 +127,10 @@ function enterPortal(licenseValue) {
 
 function setGateBusy(busy) {
   el.gateSubmit.disabled = busy;
-  el.gateSubmit.querySelector(".btn-label").hidden = busy;
-  el.gateSubmit.querySelector(".btn-spinner").hidden = !busy;
+  const label = el.gateSubmit.querySelector(".btn-label");
+  const spinner = el.gateSubmit.querySelector(".btn-spinner");
+  if (label) label.hidden = busy;
+  if (spinner) spinner.hidden = !busy;
 }
 
 function showGateError(msg) {
@@ -192,12 +167,8 @@ function wirePortalControls() {
   });
 }
 
-/* ============================================================
-   Toast
-   ============================================================ */
-
-let toastHandle;
 function showToast(message, isError) {
+  let toastHandle;
   clearTimeout(toastHandle);
   el.toast.textContent = message;
   el.toast.classList.toggle("error", !!isError);
@@ -209,16 +180,8 @@ function showToast(message, isError) {
   }, 3200);
 }
 
-/* ============================================================
-   CSV fetching
-   ============================================================ */
-
 function fetchCSV(url) {
   return new Promise((resolve, reject) => {
-    if (!url || url.startsWith("PASTE_")) {
-      reject(new Error("CSV URL not configured. Update CONFIG in script.js."));
-      return;
-    }
     Papa.parse(url, {
       download: true,
       header: true,
@@ -229,16 +192,12 @@ function fetchCSV(url) {
   });
 }
 
-/* ============================================================
-   Release notes: load, normalize, render
-   ============================================================ */
-
 async function loadReleaseNotes() {
   el.tableStatus.hidden = false;
   el.tableStatus.textContent = "Loading release notes…";
   el.tableBody.innerHTML = "";
   el.pagination.innerHTML = "";
-  el.syncStatus.textContent = "Loading release data…";
+  el.syncStatus.textContent = "Syncing data…";
 
   try {
     const rows = await fetchCSV(CONFIG.RELEASE_NOTES_CSV_URL);
@@ -250,13 +209,11 @@ async function loadReleaseNotes() {
     applyFilter();
 
     const now = new Date();
-    el.syncStatus.textContent =
-      `Synced from Google Sheets · last checked ${now.toLocaleTimeString()} · refresh the page for the latest updates`;
+    el.syncStatus.textContent = `Live Synced · Last updated ${now.toLocaleTimeString()}`;
   } catch (err) {
     console.error(err);
     el.tableStatus.hidden = false;
-    el.tableStatus.textContent =
-      "Couldn't load release notes. Check the CSV URL in script.js and your connection.";
+    el.tableStatus.textContent = "Unable to load release notes.";
     el.syncStatus.textContent = "Sync failed.";
   }
 }
@@ -270,33 +227,19 @@ function normalizeRow(row) {
   const internalLink = (row[COLUMNS.DOC_INTERNAL] ?? "").toString().trim();
   const externalLink = (row[COLUMNS.DOC_EXTERNAL] ?? "").toString().trim();
 
-  // Skip fully blank rows (e.g. trailing empty lines in the sheet).
   if (!date && !module && !page && !type && !notes) return null;
 
   const dateSort = parseDateForSorting(date);
-
   return { date, module, page, type, notes, internalLink, externalLink, dateSort };
 }
 
-// Parses the Release Date column for sorting purposes only (display always
-// uses the original sheet text, untouched). Handles DD/MM/YYYY (e.g.
-// "07/08/2026" = 7 August 2026) since that's the common Google Sheets export
-// format outside the US. Falls back to native Date parsing for anything else
-// (e.g. "2026-08-07" ISO format), so both styles work.
 function parseDateForSorting(str) {
   if (!str) return null;
-
   const dmy = str.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
   if (dmy) {
-    const day = parseInt(dmy[1], 10);
-    const month = parseInt(dmy[2], 10);
-    const year = parseInt(dmy[3], 10);
-    if (month >= 1 && month <= 12 && day >= 1 && day <= 31) {
-      const d = new Date(year, month - 1, day);
-      return isNaN(d.getTime()) ? null : d.getTime();
-    }
+    const d = new Date(parseInt(dmy[3], 10), parseInt(dmy[2], 10) - 1, parseInt(dmy[1], 10));
+    return isNaN(d.getTime()) ? null : d.getTime();
   }
-
   const fallback = new Date(str);
   return isNaN(fallback.getTime()) ? null : fallback.getTime();
 }
@@ -332,19 +275,16 @@ function renderTable() {
 
   if (state.allNotes.length === 0) {
     el.tableStatus.hidden = false;
-    el.tableStatus.textContent = "No release notes found.";
+    el.tableStatus.textContent = "No release notes available.";
   } else if (total === 0) {
     el.tableStatus.hidden = false;
-    el.tableStatus.textContent = `No results for "${el.searchInput.value.trim()}".`;
+    el.tableStatus.textContent = `No matching records found for "${el.searchInput.value.trim()}".`;
   } else {
     el.tableStatus.hidden = true;
     pageRows.forEach((note) => el.tableBody.appendChild(buildRow(note)));
   }
 
-  el.resultCount.textContent = total
-    ? `${total} record${total === 1 ? "" : "s"}`
-    : "";
-
+  el.resultCount.textContent = total ? `${total} Record${total === 1 ? "" : "s"}` : "";
   renderPagination(pageCount);
 }
 
@@ -397,17 +337,16 @@ function typePill(type) {
   return span;
 }
 
+/* Document Buttons Logic: Only ERI00001 gets Internal Doc, others get External Doc */
 function buildDocActions(note) {
   const wrap = document.createElement("div");
   wrap.className = "doc-actions";
 
-  const hasExternal = state.isSpecialLicense && note.externalLink;
-
-  if (hasExternal) {
-    wrap.appendChild(docButton("Internal", note, "internal"));
-    wrap.appendChild(docButton("External", note, "external", true));
+  if (state.isSpecialLicense) {
+    wrap.appendChild(docButton("Internal Doc", note, "internal"));
+    wrap.appendChild(docButton("External Doc", note, "external", true));
   } else {
-    wrap.appendChild(docButton("View Document", note, "internal"));
+    wrap.appendChild(docButton("External Doc", note, "external"));
   }
 
   return wrap;
@@ -423,9 +362,78 @@ function docButton(label, note, which, secondary) {
   return btn;
 }
 
-/* ============================================================
-   Pagination
-   ============================================================ */
+/* Modal and Document Preview */
+function wireModal() {
+  el.modalClose.addEventListener("click", closeDocModal);
+  el.modalBackdrop.addEventListener("click", (e) => {
+    if (e.target === el.modalBackdrop) closeDocModal();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !el.modalBackdrop.hidden) closeDocModal();
+  });
+
+  el.modalTabs.querySelectorAll(".modal-tab").forEach((tab) => {
+    tab.addEventListener("click", () => {
+      if (state.activeNote) {
+        switchModalTab(tab.dataset.target, state.activeNote);
+      }
+    });
+  });
+}
+
+function openDocModal(note, which) {
+  state.activeNote = note;
+  
+  const canShowTabs = state.isSpecialLicense && note.internalLink && note.externalLink;
+  el.modalTabs.hidden = !canShowTabs;
+
+  el.modalTitle.textContent = `${note.page || note.module || "Document"} Preview (${note.date || ""})`;
+
+  el.frameInternal.src = "about:blank";
+  el.frameExternal.src = "about:blank";
+  el.frameInternal.removeAttribute("data-loaded");
+  el.frameExternal.removeAttribute("data-loaded");
+
+  el.modalBackdrop.hidden = false;
+  document.body.style.overflow = "hidden";
+
+  switchModalTab(which, note);
+}
+
+function switchModalTab(which, note) {
+  el.modalTabs.querySelectorAll(".modal-tab").forEach((tab) => {
+    tab.classList.toggle("active", tab.dataset.target === which);
+  });
+
+  const isInternal = which === "internal";
+  el.frameInternal.hidden = !isInternal;
+  el.frameExternal.hidden = isInternal;
+
+  const frame = isInternal ? el.frameInternal : el.frameExternal;
+  const link = isInternal ? note.internalLink : note.externalLink;
+
+  if (link && !frame.dataset.loaded) {
+    frame.src = toDrivePreviewUrl(link);
+    frame.dataset.loaded = "1";
+  }
+}
+
+function closeDocModal() {
+  el.modalBackdrop.hidden = true;
+  document.body.style.overflow = "";
+  el.frameInternal.src = "about:blank";
+  el.frameExternal.src = "about:blank";
+  state.activeNote = null;
+}
+
+function toDrivePreviewUrl(url) {
+  if (!url) return "about:blank";
+  const fileIdMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+  if (fileIdMatch) {
+    return `https://drive.google.com/file/d/${fileIdMatch[1]}/preview`;
+  }
+  return url;
+}
 
 function renderPagination(pageCount) {
   el.pagination.innerHTML = "";
@@ -433,19 +441,11 @@ function renderPagination(pageCount) {
 
   el.pagination.appendChild(pageButton("‹", state.currentPage - 1, state.currentPage === 1));
 
-  const pages = paginationRange(state.currentPage, pageCount);
-  pages.forEach((p) => {
-    if (p === "…") {
-      const span = document.createElement("span");
-      span.className = "page-ellipsis";
-      span.textContent = "…";
-      el.pagination.appendChild(span);
-    } else {
-      const btn = pageButton(String(p), p, false);
-      if (p === state.currentPage) btn.classList.add("active");
-      el.pagination.appendChild(btn);
-    }
-  });
+  for (let i = 1; i <= pageCount; i++) {
+    const btn = pageButton(String(i), i, false);
+    if (i === state.currentPage) btn.classList.add("active");
+    el.pagination.appendChild(btn);
+  }
 
   el.pagination.appendChild(pageButton("›", state.currentPage + 1, state.currentPage === pageCount));
 }
@@ -459,95 +459,6 @@ function pageButton(label, targetPage, disabled) {
   btn.addEventListener("click", () => {
     state.currentPage = targetPage;
     renderTable();
-    document.getElementById("notes-table").scrollIntoView({ block: "nearest" });
   });
   return btn;
-}
-
-function paginationRange(current, total) {
-  const delta = 1;
-  const range = [];
-  for (let i = 1; i <= total; i++) {
-    if (i === 1 || i === total || (i >= current - delta && i <= current + delta)) {
-      range.push(i);
-    }
-  }
-  const withDots = [];
-  let prev = 0;
-  for (const p of range) {
-    if (prev && p - prev > 1) withDots.push("…");
-    withDots.push(p);
-    prev = p;
-  }
-  return withDots;
-}
-
-/* ============================================================
-   Document modal
-   ============================================================ */
-
-function wireModal() {
-  el.modalClose.addEventListener("click", closeDocModal);
-  el.modalBackdrop.addEventListener("click", (e) => {
-    if (e.target === el.modalBackdrop) closeDocModal();
-  });
-  document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape" && !el.modalBackdrop.hidden) closeDocModal();
-  });
-
-  el.modalTabs.querySelectorAll(".modal-tab").forEach((tab) => {
-    tab.addEventListener("click", () => switchModalTab(tab.dataset.target));
-  });
-}
-
-function openDocModal(note, which) {
-  const hasExternal = state.isSpecialLicense && note.externalLink;
-  el.modalTabs.hidden = !hasExternal;
-  el.modalTitle.textContent = `${note.page || note.module || "Release"} — ${note.date || ""}`.trim();
-
-  el.frameInternal.src = "about:blank";
-  el.frameExternal.src = "about:blank";
-  el.frameInternal.removeAttribute("data-loaded");
-  el.frameExternal.removeAttribute("data-loaded");
-
-  el.modalBackdrop.hidden = false;
-  document.body.style.overflow = "hidden";
-
-  switchModalTab(which === "external" && hasExternal ? "external" : "internal", note);
-}
-
-function switchModalTab(which, note) {
-  el.modalTabs.querySelectorAll(".modal-tab").forEach((tab) => {
-    tab.classList.toggle("active", tab.dataset.target === which);
-  });
-
-  const showInternal = which === "internal";
-  el.frameInternal.hidden = !showInternal;
-  el.frameExternal.hidden = showInternal;
-
-  const frame = showInternal ? el.frameInternal : el.frameExternal;
-  if (note && !frame.dataset.loaded) {
-    const link = showInternal ? note.internalLink : note.externalLink;
-    frame.src = toDrivePreviewUrl(link);
-    frame.dataset.loaded = "1";
-  }
-}
-
-function closeDocModal() {
-  el.modalBackdrop.hidden = true;
-  document.body.style.overflow = "";
-  el.frameInternal.src = "about:blank";
-  el.frameExternal.src = "about:blank";
-}
-
-// Converts a Google Drive share link into its /preview embed URL.
-// Falls back to returning the original URL if it doesn't look like Drive.
-function toDrivePreviewUrl(url) {
-  if (!url) return "about:blank";
-
-  const fileIdMatch = url.match(/\/d\/([a-zA-Z0-9_-]+)/) || url.match(/[?&]id=([a-zA-Z0-9_-]+)/);
-  if (fileIdMatch) {
-    return `https://drive.google.com/file/d/${fileIdMatch[1]}/preview`;
-  }
-  return url;
 }
