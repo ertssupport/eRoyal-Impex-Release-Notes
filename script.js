@@ -8,7 +8,7 @@
 
 const CONFIG = {
   // Paste the "Publish to web" CSV URL for your Release Notes sheet.
-  RELEASE_NOTES_CSV_URL: "Release_notes.csv",
+  RELEASE_NOTES_CSV_URL: "./Release_Notes.csv",
 
   // Paste the "Publish to web" CSV URL for your Valid License Numbers sheet.
   LICENSE_CSV_URL: "./LicenseNumber-LICENSE_NUMBERS.csv",
