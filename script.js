@@ -8,10 +8,10 @@
 
 const CONFIG = {
   // Paste the "Publish to web" CSV URL for your Release Notes sheet.
-  RELEASE_NOTES_CSV_URL: "License Number.csv",
+  RELEASE_NOTES_CSV_URL: "Release_notes.csv",
 
   // Paste the "Publish to web" CSV URL for your Valid License Numbers sheet.
-  LICENSE_CSV_URL: "PASTE_LICENSE_NUMBERS_CSV_URL_HERE",
+  LICENSE_CSV_URL: "License%20Number.csv",
 
   // License number that unlocks the dual Internal/External doc view.
   SPECIAL_LICENSE: "ERI00001",
