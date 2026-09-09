@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Release Notes Portal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ===================== GATE SCREEN ===================== -->
+<main id="gate-screen" class="gate-screen">
+
+  <section class="gate-brand" aria-hidden="true">
+    <div class="gate-brand-top">
+      <div class="gate-seal">
+        <svg viewBox="0 0 64 64" width="34" height="34">
+          <circle cx="32" cy="32" r="29" fill="none" stroke="currentColor" stroke-width="2"/>
+          <circle cx="32" cy="32" r="23" fill="none" stroke="currentColor" stroke-width="1"/>
+          <path d="M20 33.5 L28 41 L44 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <p class="gate-brand-eyebrow">Customer Access · Manifest No. 003</p>
+    </div>
+
+    <h1 class="gate-brand-title">Release<br>Notes<br>Portal</h1>
+
+    <div class="gate-brand-ledger">
+      <div class="ledger-row"><span>01</span><span>Import</span></div>
+      <div class="ledger-row"><span>02</span><span>Export</span></div>
+      <div class="ledger-row"><span>03</span><span>Both</span></div>
+    </div>
+
+    <p class="gate-brand-foot">Every release, logged and stamped for your account.</p>
+  </section>
+
+  <section class="gate-form-panel">
+    <div class="gate-card">
+      <p class="gate-eyebrow">Verify your account</p>
+      <h2 class="gate-title">Company License Number</h2>
+      <p class="gate-copy">Enter the license number issued to your organization to view its release notes.</p>
+
+      <form id="gate-form" class="gate-form" autocomplete="off">
+        <label for="license-input" class="gate-label">Company License Number</label>
+        <input type="text" id="license-input" name="license" placeholder="e.g. ACM10432" required>
+        <button type="submit" id="gate-submit" class="btn-primary">
+          <span class="btn-label">Verify &amp; Continue</span>
+          <span class="btn-spinner" hidden></span>
+        </button>
+      </form>
+
+      <p id="gate-error" class="gate-error" role="alert" hidden></p>
+      <p class="gate-help">Don't have a license number? Contact your account manager.</p>
+    </div>
+  </section>
+</main>
+
+<!-- Toast -->
+<div id="toast" class="toast" role="alert" hidden></div>
+
+<!-- ===================== PORTAL SCREEN ===================== -->
+<main id="portal-screen" class="portal-screen" hidden>
+
+  <header class="portal-header">
+    <div class="portal-header-left">
+      <p class="portal-eyebrow">Release Manifest</p>
+      <h1 class="portal-title">Release Notes</h1>
+    </div>
+    <div class="portal-header-right">
+      <div class="license-chip">
+        <span class="license-chip-label">License</span>
+        <span id="license-chip-value" class="license-chip-value">—</span>
+      </div>
+      <button id="logout-btn" class="btn-ghost" type="button">Sign out</button>
+    </div>
+  </header>
+
+  <div class="toolbar">
+    <div class="search-field">
+      <svg class="search-icon" viewBox="0 0 20 20" width="16" height="16" aria-hidden="true">
+        <circle cx="8.5" cy="8.5" r="6" fill="none" stroke="currentColor" stroke-width="1.6"/>
+        <line x1="13.2" y1="13.2" x2="18" y2="18" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      </svg>
+      <input type="text" id="search-input" placeholder="Search release date, module, page, type or notes…" aria-label="Search release notes">
+    </div>
+    <div id="result-count" class="result-count"></div>
+  </div>
+
+  <div class="table-wrap">
+    <table class="notes-table" id="notes-table">
+      <thead>
+        <tr>
+          <th scope="col">Release Date</th>
+          <th scope="col">Module</th>
+          <th scope="col">Page</th>
+          <th scope="col">Release Type</th>
+          <th scope="col">Short Notes</th>
+          <th scope="col">View Doc</th>
+        </tr>
+      </thead>
+      <tbody id="table-body">
+        <!-- rows injected by script.js -->
+      </tbody>
+    </table>
+
+    <div id="table-status" class="table-status" hidden></div>
+  </div>
+
+  <nav class="pagination" id="pagination" aria-label="Pagination"></nav>
+
+  <footer class="portal-footer">
+    <span id="sync-status">Loading release data…</span>
+  </footer>
+</main>
+
+<!-- ===================== DOCUMENT MODAL ===================== -->
+<div id="doc-modal" class="modal-backdrop" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal-head">
+      <h2 id="modal-title" class="modal-title">Document Preview</h2>
+      <div class="modal-tabs" id="modal-tabs" hidden>
+        <button type="button" class="modal-tab active" data-target="internal">Internal</button>
+        <button type="button" class="modal-tab" data-target="external">External</button>
+      </div>
+      <button type="button" id="modal-close" class="modal-close" aria-label="Close preview">&times;</button>
+    </div>
+    <div class="modal-body">
+      <iframe id="modal-frame-internal" class="modal-frame" title="Internal document preview"></iframe>
+      <iframe id="modal-frame-external" class="modal-frame" title="External document preview" hidden></iframe>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="script.js"></script>
+</body>
+</html>
