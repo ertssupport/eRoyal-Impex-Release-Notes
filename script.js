@@ -22,6 +22,19 @@ const COLUMNS = {
 
 const LICENSE_COLUMN = "License_Number";
 
+/* Looks up a CSV column value by name, ignoring case, spaces, underscores,
+   and hidden characters (like a UTF-8 BOM Excel/Sheets sometimes adds to
+   the very first header). This means small header mismatches ("License
+   Number " vs "License_Number") never silently break the license check. */
+function getCol(row, expectedName) {
+  const norm = (s) => (s ?? "").toString().toLowerCase().replace(/[^a-z0-9]/g, "");
+  const target = norm(expectedName);
+  for (const key in row) {
+    if (norm(key) === target) return row[key];
+  }
+  return undefined;
+}
+
 /* State Management */
 const state = {
   license: null,
@@ -113,7 +126,7 @@ async function validateLicense(value) {
   const target = value.toLowerCase();
 
   for (const row of rows) {
-    const candidate = (row[LICENSE_COLUMN] ?? "").toString().trim();
+    const candidate = (getCol(row, LICENSE_COLUMN) ?? "").toString().trim();
     if (candidate && candidate.toLowerCase() === target) {
       return candidate;
     }
@@ -287,13 +300,13 @@ async function loadReleaseNotes() {
 }
 
 function normalizeRow(row) {
-  const date = (row[COLUMNS.DATE] ?? "").toString().trim();
-  const module = (row[COLUMNS.MODULE] ?? "").toString().trim();
-  const page = (row[COLUMNS.PAGE] ?? "").toString().trim();
-  const type = (row[COLUMNS.TYPE] ?? "").toString().trim();
-  const notes = (row[COLUMNS.NOTES] ?? "").toString().trim();
-  const internalLink = (row[COLUMNS.DOC_INTERNAL] ?? "").toString().trim();
-  const externalLink = (row[COLUMNS.DOC_EXTERNAL] ?? "").toString().trim();
+  const date = (getCol(row, COLUMNS.DATE) ?? "").toString().trim();
+  const module = (getCol(row, COLUMNS.MODULE) ?? "").toString().trim();
+  const page = (getCol(row, COLUMNS.PAGE) ?? "").toString().trim();
+  const type = (getCol(row, COLUMNS.TYPE) ?? "").toString().trim();
+  const notes = (getCol(row, COLUMNS.NOTES) ?? "").toString().trim();
+  const internalLink = (getCol(row, COLUMNS.DOC_INTERNAL) ?? "").toString().trim();
+  const externalLink = (getCol(row, COLUMNS.DOC_EXTERNAL) ?? "").toString().trim();
 
   if (!date && !module && !page && !type && !notes) return null;
 
