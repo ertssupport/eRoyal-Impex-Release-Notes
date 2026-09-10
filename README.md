@@ -188,29 +188,3 @@ const LICENSE_COLUMN = "License Number";
 
 Change the right-hand string values to match your sheet's actual header
 text exactly (case-sensitive).
-
----
-
-## New in this update
-
-### Theme toggle (dark / light)
-A sun/moon button appears on the license-gate screen and in the portal
-header. It flips a `data-theme="light"` attribute on `<html>`, swapping the
-CSS custom properties in `style.css` to a light "paper board" palette. The
-choice is saved in `localStorage` (`rnp_theme`) so it persists across visits;
-if nothing is saved yet, it defaults to the visitor's OS-level light/dark
-preference.
-
-### Extra features
-- **Sortable columns** — click any column header (Release Date, Module,
-  Page, Release Type, Short Notes) to sort ascending/descending; an arrow
-  indicator shows the active sort.
-- **Rows-per-page selector** — choose 10 / 25 / 50 / 100 rows per page
-  (saved in `localStorage` as `rnp_page_size`).
-- **Export CSV** — downloads the currently filtered/sorted rows as a `.csv`
-  file (client-side only, via PapaParse's `unparse`).
-- **Keyboard shortcut** — press `/` anywhere in the portal to jump focus to
-  the search box.
-
-No changes were made to the license-gate logic, Google Sheets integration,
-or document-preview modal — all existing setup steps above still apply.

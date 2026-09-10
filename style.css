@@ -24,30 +24,6 @@
   --radius: 4px;
 }
 
-/* ---- Light theme override ----
-   Same variable set, re-tuned for a paper/board look in daylight. Toggled
-   by setting data-theme="light" on <html> (see script.js). */
-:root[data-theme="light"] {
-  --hull: #f4f2ec;
-  --hull-2: #ffffff;
-  --panel: #ffffff;
-  --panel-raised: #eee9dd;
-  --line: #d9d2bf;
-  --line-soft: #e6e1d3;
-  --paper: #201c14;
-  --paper-dim: #4a4436;
-  --muted: #837a63;
-  --amber: #b8720f;
-  --amber-dim: #8f5a0c;
-  --amber-glow: rgba(184, 114, 15, 0.12);
-  --teal: #16786c;
-  --teal-dim: #1f6b62;
-  --danger: #c0392b;
-  --danger-glow: rgba(192, 57, 43, 0.1);
-}
-
-:root[data-theme="light"] .modal-body { background: #f4f2ec; }
-
 * { box-sizing: border-box; }
 
 html, body {
@@ -57,7 +33,6 @@ html, body {
   color: var(--paper);
   font-family: var(--font-display);
   -webkit-font-smoothing: antialiased;
-  transition: background 0.2s ease, color 0.2s ease;
 }
 
 h1, h2 { font-family: var(--font-display); margin: 0; }
@@ -628,39 +603,6 @@ button, input {
 
 .btn-ghost:hover { border-color: var(--amber); color: var(--amber); background: var(--amber-glow); }
 
-/* ---------------------------------------------------------- */
-/* Theme toggle                                                */
-/* ---------------------------------------------------------- */
-
-.theme-toggle {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 34px;
-  height: 34px;
-  flex: none;
-  background: transparent;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  color: var(--paper-dim);
-  cursor: pointer;
-  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
-}
-
-.theme-toggle:hover { border-color: var(--amber); color: var(--amber); background: var(--amber-glow); }
-
-.theme-toggle svg { display: block; }
-.theme-toggle .icon-sun { display: none; }
-:root[data-theme="light"] .theme-toggle .icon-moon { display: none; }
-:root[data-theme="light"] .theme-toggle .icon-sun { display: block; }
-
-.gate-theme-toggle {
-  position: absolute;
-  top: 20px;
-  right: 20px;
-  z-index: 5;
-}
-
 .toolbar {
   display: flex;
   align-items: center;
@@ -738,78 +680,6 @@ button, input {
   border-bottom: 1px solid var(--line);
   white-space: nowrap;
 }
-
-.notes-table thead th.sortable {
-  cursor: pointer;
-  user-select: none;
-  transition: color 0.12s ease;
-}
-
-.notes-table thead th.sortable:hover { color: var(--amber); }
-
-.sort-arrow {
-  display: inline-block;
-  margin-left: 5px;
-  opacity: 0.35;
-  font-size: 9px;
-}
-
-.notes-table thead th.sort-active { color: var(--amber); }
-.notes-table thead th.sort-active .sort-arrow { opacity: 1; }
-
-/* ---------------------------------------------------------- */
-/* Toolbar extras — rows-per-page, export                     */
-/* ---------------------------------------------------------- */
-
-.toolbar-actions {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.page-size-field {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  font-family: var(--font-mono);
-  font-size: 12px;
-  color: var(--muted);
-  white-space: nowrap;
-}
-
-#page-size-select {
-  background: var(--panel);
-  border: 1px solid var(--line);
-  color: var(--paper);
-  border-radius: var(--radius);
-  padding: 6px 8px;
-  font-family: var(--font-mono);
-  font-size: 12.5px;
-  cursor: pointer;
-}
-
-#page-size-select:focus { border-color: var(--amber); }
-
-.export-btn {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  font-family: var(--font-mono);
-  font-size: 12.5px;
-  border: 1px solid var(--line);
-  background: transparent;
-  color: var(--paper-dim);
-  padding: 7px 12px;
-  border-radius: var(--radius);
-  cursor: pointer;
-  white-space: nowrap;
-  transition: border-color 0.15s ease, color 0.15s ease, background 0.15s ease;
-}
-
-.export-btn:hover { border-color: var(--teal); color: var(--teal); background: rgba(79, 209, 192, 0.08); }
-.export-btn:disabled { opacity: 0.45; cursor: not-allowed; }
-.export-btn:disabled:hover { border-color: var(--line); color: var(--paper-dim); background: transparent; }
 
 .notes-table tbody td {
   padding: 14px 16px;
@@ -1073,8 +943,6 @@ button, input {
 @media (max-width: 720px) {
   .portal-screen { padding: 28px 16px 60px; }
   .portal-title { font-size: 24px; }
-  .toolbar { align-items: stretch; }
-  .toolbar-actions { justify-content: space-between; }
 
   .notes-table thead { display: none; }
   .notes-table, .notes-table tbody, .notes-table tbody tr, .notes-table tbody td {

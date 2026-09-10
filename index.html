@@ -14,16 +14,6 @@
 <!-- ===================== GATE SCREEN ===================== -->
 <main id="gate-screen" class="gate-screen">
 
-  <button type="button" id="theme-toggle-gate" class="theme-toggle gate-theme-toggle" aria-label="Toggle dark or light theme" title="Toggle theme">
-    <svg class="icon-moon" viewBox="0 0 20 20" width="16" height="16" aria-hidden="true">
-      <path d="M16.5 12.6A7 7 0 0 1 7.4 3.5a7 7 0 1 0 9.1 9.1Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-    </svg>
-    <svg class="icon-sun" viewBox="0 0 20 20" width="16" height="16" aria-hidden="true">
-      <circle cx="10" cy="10" r="3.6" fill="none" stroke="currentColor" stroke-width="1.5"/>
-      <path d="M10 2.3v2M10 15.7v2M17.7 10h-2M4.3 10h-2M15.4 4.6l-1.4 1.4M6 14l-1.4 1.4M15.4 15.4 14 14M6 6 4.6 4.6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-    </svg>
-  </button>
-
   <section class="gate-board">
     <div class="board-top">
       <div class="flip-logo" aria-hidden="true">
@@ -150,15 +140,6 @@
         <span class="license-chip-label">License</span>
         <span id="license-chip-value" class="license-chip-value">—</span>
       </div>
-      <button type="button" id="theme-toggle-portal" class="theme-toggle" aria-label="Toggle dark or light theme" title="Toggle theme">
-        <svg class="icon-moon" viewBox="0 0 20 20" width="16" height="16" aria-hidden="true">
-          <path d="M16.5 12.6A7 7 0 0 1 7.4 3.5a7 7 0 1 0 9.1 9.1Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-        <svg class="icon-sun" viewBox="0 0 20 20" width="16" height="16" aria-hidden="true">
-          <circle cx="10" cy="10" r="3.6" fill="none" stroke="currentColor" stroke-width="1.5"/>
-          <path d="M10 2.3v2M10 15.7v2M17.7 10h-2M4.3 10h-2M15.4 4.6l-1.4 1.4M6 14l-1.4 1.4M15.4 15.4 14 14M6 6 4.6 4.6" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-        </svg>
-      </button>
       <button id="logout-btn" class="btn-ghost" type="button">
         <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
           <path d="M6 2H3.5A1.5 1.5 0 0 0 2 3.5v9A1.5 1.5 0 0 0 3.5 14H6M10.5 11.5 14 8l-3.5-3.5M14 8H6" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
@@ -174,37 +155,20 @@
         <circle cx="8.5" cy="8.5" r="6" fill="none" stroke="currentColor" stroke-width="1.6"/>
         <line x1="13.2" y1="13.2" x2="18" y2="18" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
       </svg>
-      <input type="text" id="search-input" placeholder="Search date, module, page, type or notes… (press / to focus)" aria-label="Search release notes">
+      <input type="text" id="search-input" placeholder="Search date, module, page, type or notes…" aria-label="Search release notes">
     </div>
-    <div class="toolbar-actions">
-      <label class="page-size-field">
-        Rows
-        <select id="page-size-select" aria-label="Rows per page">
-          <option value="10">10</option>
-          <option value="25">25</option>
-          <option value="50">50</option>
-          <option value="100">100</option>
-        </select>
-      </label>
-      <button type="button" id="export-csv-btn" class="export-btn" title="Export current results as CSV">
-        <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true">
-          <path d="M8 1.5v8.5M8 10 4.8 6.8M8 10l3.2-3.2M2.5 12v1.5A1 1 0 0 0 3.5 14.5h9a1 1 0 0 0 1-1V12" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-        Export CSV
-      </button>
-      <div id="result-count" class="result-count"></div>
-    </div>
+    <div id="result-count" class="result-count"></div>
   </div>
 
   <div class="table-wrap">
     <table class="notes-table" id="notes-table">
       <thead>
         <tr>
-          <th scope="col" class="sortable" data-sort-key="dateSort">Release Date<span class="sort-arrow">▾</span></th>
-          <th scope="col" class="sortable" data-sort-key="module">Module<span class="sort-arrow">▾</span></th>
-          <th scope="col" class="sortable" data-sort-key="page">Page<span class="sort-arrow">▾</span></th>
-          <th scope="col" class="sortable" data-sort-key="type">Release Type<span class="sort-arrow">▾</span></th>
-          <th scope="col" class="sortable" data-sort-key="notes">Short Notes<span class="sort-arrow">▾</span></th>
+          <th scope="col">Release Date</th>
+          <th scope="col">Module</th>
+          <th scope="col">Page</th>
+          <th scope="col">Release Type</th>
+          <th scope="col">Short Notes</th>
           <th scope="col">View Document</th>
         </tr>
       </thead>
