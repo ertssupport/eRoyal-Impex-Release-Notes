@@ -58,12 +58,21 @@ const el = {
   modalClose: document.getElementById("modal-close"),
   frameInternal: document.getElementById("modal-frame-internal"),
   frameExternal: document.getElementById("modal-frame-external"),
+
+  toastText: document.getElementById("toast-text"),
+
+  confirmBackdrop: document.getElementById("confirm-modal"),
+  confirmTitle: document.getElementById("confirm-title"),
+  confirmMessage: document.getElementById("confirm-message"),
+  confirmYes: document.getElementById("confirm-yes"),
+  confirmNo: document.getElementById("confirm-no"),
 };
 
 /* Initialization */
 document.addEventListener("DOMContentLoaded", () => {
   wireGate();
   wireModal();
+  wireConfirmDialog();
   wirePortalControls();
 
   const savedLicense = sessionStorage.getItem(CONFIG.SESSION_KEY);
@@ -136,6 +145,13 @@ function setGateBusy(busy) {
 function showGateError(msg) {
   el.gateError.textContent = msg;
   el.gateError.hidden = false;
+
+  const card = document.querySelector(".ticket-main");
+  if (card) {
+    card.classList.remove("shake");
+    void card.offsetWidth; /* restart animation */
+    card.classList.add("shake");
+  }
 }
 
 function hideGateError() {
@@ -144,16 +160,13 @@ function hideGateError() {
 
 function wirePortalControls() {
   el.logoutBtn.addEventListener("click", () => {
-    sessionStorage.removeItem(CONFIG.SESSION_KEY);
-    state.license = null;
-    state.allNotes = [];
-    state.filteredNotes = [];
-    state.currentPage = 1;
-    el.searchInput.value = "";
-    el.portalScreen.hidden = true;
-    el.gateScreen.hidden = false;
-    el.licenseInput.value = "";
-    el.licenseInput.focus();
+    showConfirm({
+      title: "Sign out of this session?",
+      message: "You'll need to enter your license number again to view release notes.",
+      confirmLabel: "Yes, sign out",
+      cancelLabel: "No, stay signed in",
+      onConfirm: performLogout,
+    });
   });
 
   let debounceHandle;
@@ -167,14 +180,69 @@ function wirePortalControls() {
   });
 }
 
+function performLogout() {
+  sessionStorage.removeItem(CONFIG.SESSION_KEY);
+  state.license = null;
+  state.allNotes = [];
+  state.filteredNotes = [];
+  state.currentPage = 1;
+  el.searchInput.value = "";
+  el.portalScreen.hidden = true;
+  el.gateScreen.hidden = false;
+  el.licenseInput.value = "";
+  el.licenseInput.focus();
+  showToast("Signed out successfully.");
+}
+
+/* Reusable Yes / No confirm dialog */
+let confirmActiveCallback = null;
+
+function wireConfirmDialog() {
+  el.confirmYes.addEventListener("click", () => {
+    const cb = confirmActiveCallback;
+    closeConfirm();
+    if (typeof cb === "function") cb();
+  });
+  el.confirmNo.addEventListener("click", closeConfirm);
+  el.confirmBackdrop.addEventListener("click", (e) => {
+    if (e.target === el.confirmBackdrop) closeConfirm();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !el.confirmBackdrop.hidden) closeConfirm();
+  });
+}
+
+function showConfirm({ title, message, confirmLabel, cancelLabel, onConfirm }) {
+  el.confirmTitle.textContent = title || "Are you sure?";
+  el.confirmMessage.textContent = message || "";
+  if (confirmLabel) el.confirmYes.textContent = confirmLabel;
+  if (cancelLabel) el.confirmNo.textContent = cancelLabel;
+  confirmActiveCallback = onConfirm;
+
+  el.confirmBackdrop.hidden = false;
+  document.body.style.overflow = "hidden";
+  requestAnimationFrame(() => el.confirmBackdrop.classList.add("show"));
+  el.confirmNo.focus();
+}
+
+function closeConfirm() {
+  el.confirmBackdrop.classList.remove("show");
+  setTimeout(() => { el.confirmBackdrop.hidden = true; }, 150);
+  document.body.style.overflow = "";
+  confirmActiveCallback = null;
+}
+
 function showToast(message, isError) {
-  let toastHandle;
-  clearTimeout(toastHandle);
-  el.toast.textContent = message;
+  clearTimeout(showToast._handle);
+  el.toastText.textContent = message;
   el.toast.classList.toggle("error", !!isError);
+  const glyph = document.getElementById("toast-icon-glyph");
+  if (glyph) {
+    glyph.setAttribute("d", isError ? "M7 7l6 6M13 7l-6 6" : "M6.5 10.3 8.8 12.6 13.5 7.3");
+  }
   el.toast.hidden = false;
   requestAnimationFrame(() => el.toast.classList.add("show"));
-  toastHandle = setTimeout(() => {
+  showToast._handle = setTimeout(() => {
     el.toast.classList.remove("show");
     setTimeout(() => { el.toast.hidden = true; }, 200);
   }, 3200);
@@ -355,10 +423,21 @@ function buildDocActions(note) {
 function docButton(label, note, which, secondary) {
   const btn = document.createElement("button");
   btn.type = "button";
-  btn.className = "doc-link-btn" + (secondary ? " secondary" : "");
+  const link = which === "internal" ? note.internalLink : note.externalLink;
+  const available = !!link;
+
+  btn.className = "doc-link-btn" + (secondary ? " secondary" : "") + (available ? "" : " unavailable");
   btn.textContent = label;
-  btn.disabled = which === "internal" ? !note.internalLink : !note.externalLink;
-  btn.addEventListener("click", () => openDocModal(note, which));
+  btn.setAttribute("aria-disabled", String(!available));
+  if (!available) btn.title = "Document not available";
+
+  btn.addEventListener("click", () => {
+    if (!available) {
+      showToast("Document not available for this release note.", true);
+      return;
+    }
+    openDocModal(note, which);
+  });
   return btn;
 }
 
