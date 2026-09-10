@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Release Notes Portal — eRoyal Impex</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- ===================== GATE SCREEN ===================== -->
+<main id="gate-screen" class="gate-screen">
+
+  <section class="gate-board">
+    <div class="board-top">
+      <div class="flip-logo" aria-hidden="true">
+        <span class="flip-tile">e</span><span class="flip-tile">R</span><span class="flip-tile">I</span>
+      </div>
+      <p class="board-tagline">eRoyal Impex &middot; Software Release Board</p>
+    </div>
+
+    <h1 class="board-title">Every release,<br>tracked like a shipment.</h1>
+
+    <div class="board-schedule" role="list">
+      <div class="schedule-row" role="listitem">
+        <span class="schedule-dot dot-live"></span>
+        <span class="schedule-name">Import Operations</span>
+        <span class="schedule-status">On schedule</span>
+      </div>
+      <div class="schedule-row" role="listitem">
+        <span class="schedule-dot dot-live"></span>
+        <span class="schedule-name">Export Operations</span>
+        <span class="schedule-status">On schedule</span>
+      </div>
+      <div class="schedule-row" role="listitem">
+        <span class="schedule-dot dot-live"></span>
+        <span class="schedule-name">Combined Modules</span>
+        <span class="schedule-status">On schedule</span>
+      </div>
+    </div>
+
+    <p class="board-foot">Signed in with your company license, you'll see every update logged against your account — new features, enhancements, and the documents behind each one.</p>
+  </section>
+
+  <section class="gate-stub-panel">
+    <div class="ticket">
+      <div class="ticket-main">
+        <div class="ticket-row ticket-header">
+          <div>
+            <p class="ticket-eyebrow">Access pass</p>
+            <h2 class="ticket-title">Company License</h2>
+          </div>
+          <div class="ticket-seal" aria-hidden="true">
+            <svg viewBox="0 0 64 64" width="30" height="30">
+              <circle cx="32" cy="32" r="29" fill="none" stroke="currentColor" stroke-width="2"/>
+              <circle cx="32" cy="32" r="23" fill="none" stroke="currentColor" stroke-width="1"/>
+              <path d="M20 33.5 L28 41 L44 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </div>
+        </div>
+
+        <p class="ticket-copy">Enter the license number issued to your organization to board the release notes portal.</p>
+
+        <form id="gate-form" class="gate-form" autocomplete="off">
+          <label for="license-input" class="gate-label">License number</label>
+          <div class="input-shell">
+            <svg class="input-icon" viewBox="0 0 20 20" width="16" height="16" aria-hidden="true">
+              <circle cx="7" cy="7" r="4" fill="none" stroke="currentColor" stroke-width="1.6"/>
+              <path d="M10 10 L17 17 M13 17 L17 13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+            </svg>
+            <input type="text" id="license-input" name="license" placeholder="e.g. ERI00001" autocapitalize="characters" required>
+          </div>
+          <button type="submit" id="gate-submit" class="btn-primary">
+            <span class="btn-label">Verify &amp; board</span>
+            <svg class="btn-arrow" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+              <path d="M3 8h9M8 3l5 5-5 5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            <span class="btn-spinner" hidden></span>
+          </button>
+        </form>
+
+        <p id="gate-error" class="gate-error" role="alert" hidden></p>
+      </div>
+
+      <div class="ticket-perforation" aria-hidden="true"></div>
+
+      <div class="ticket-stub">
+        <div class="stub-field">
+          <span class="stub-label">Terminal</span>
+          <span class="stub-value">Release notes</span>
+        </div>
+        <div class="stub-field">
+          <span class="stub-label">Access</span>
+          <span class="stub-value">License gated</span>
+        </div>
+        <p class="stub-help">No license yet? Contact your eRoyal Impex account manager to get one issued.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- Toast Notifications -->
+<div id="toast" class="toast" role="alert" hidden>
+  <svg id="toast-icon" class="toast-icon" viewBox="0 0 20 20" width="16" height="16" aria-hidden="true">
+    <circle cx="10" cy="10" r="8.2" fill="none" stroke="currentColor" stroke-width="1.6"/>
+    <path id="toast-icon-glyph" d="M6.5 10.3 8.8 12.6 13.5 7.3" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>
+  <span id="toast-text"></span>
+</div>
+
+<!-- ===================== CONFIRM DIALOG (Yes / No) ===================== -->
+<div id="confirm-modal" class="modal-backdrop confirm-backdrop" hidden>
+  <div class="confirm-box" role="alertdialog" aria-modal="true" aria-labelledby="confirm-title" aria-describedby="confirm-message">
+    <div class="confirm-icon">
+      <svg viewBox="0 0 40 40" width="26" height="26" aria-hidden="true">
+        <circle cx="20" cy="20" r="17" fill="none" stroke="currentColor" stroke-width="2"/>
+        <path d="M20 12v10" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/>
+        <circle cx="20" cy="27" r="1.4" fill="currentColor"/>
+      </svg>
+    </div>
+    <h2 id="confirm-title" class="confirm-title">Sign out of this session?</h2>
+    <p id="confirm-message" class="confirm-message">You'll need to enter your license number again to view release notes.</p>
+    <div class="confirm-actions">
+      <button type="button" id="confirm-no" class="btn-ghost confirm-btn">No, stay signed in</button>
+      <button type="button" id="confirm-yes" class="btn-primary btn-danger confirm-btn">Yes, sign out</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===================== PORTAL SCREEN ===================== -->
+<main id="portal-screen" class="portal-screen" hidden>
+
+  <header class="portal-header">
+    <div class="portal-header-left">
+      <p class="portal-eyebrow"><span class="live-dot" aria-hidden="true"></span>Board live</p>
+      <h1 class="portal-title">Release Notes</h1>
+    </div>
+    <div class="portal-header-right">
+      <div class="license-chip">
+        <span class="license-chip-dot" aria-hidden="true"></span>
+        <span class="license-chip-label">License</span>
+        <span id="license-chip-value" class="license-chip-value">—</span>
+      </div>
+      <button id="logout-btn" class="btn-ghost" type="button">
+        <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
+          <path d="M6 2H3.5A1.5 1.5 0 0 0 2 3.5v9A1.5 1.5 0 0 0 3.5 14H6M10.5 11.5 14 8l-3.5-3.5M14 8H6" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        Sign out
+      </button>
+    </div>
+  </header>
+
+  <div class="toolbar">
+    <div class="search-field">
+      <svg class="search-icon" viewBox="0 0 20 20" width="18" height="18" aria-hidden="true">
+        <circle cx="8.5" cy="8.5" r="6" fill="none" stroke="currentColor" stroke-width="1.6"/>
+        <line x1="13.2" y1="13.2" x2="18" y2="18" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+      </svg>
+      <input type="text" id="search-input" placeholder="Search date, module, page, type or notes…" aria-label="Search release notes">
+    </div>
+    <div id="result-count" class="result-count"></div>
+  </div>
+
+  <div class="table-wrap">
+    <table class="notes-table" id="notes-table">
+      <thead>
+        <tr>
+          <th scope="col">Release Date</th>
+          <th scope="col">Module</th>
+          <th scope="col">Page</th>
+          <th scope="col">Release Type</th>
+          <th scope="col">Short Notes</th>
+          <th scope="col">View Document</th>
+        </tr>
+      </thead>
+      <tbody id="table-body">
+        <!-- Rows dynamically injected -->
+      </tbody>
+    </table>
+
+    <div id="table-status" class="table-status" hidden></div>
+  </div>
+
+  <nav class="pagination" id="pagination" aria-label="Pagination"></nav>
+
+  <footer class="portal-footer">
+    <span id="sync-status">Loading release data…</span>
+  </footer>
+</main>
+
+<!-- ===================== IN-PAGE DOCUMENT MODAL ===================== -->
+<div id="doc-modal" class="modal-backdrop" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal-head">
+      <h2 id="modal-title" class="modal-title">Document Preview</h2>
+      <div class="modal-tabs" id="modal-tabs" hidden>
+        <button type="button" class="modal-tab active" data-target="internal">Internal Doc</button>
+        <button type="button" class="modal-tab" data-target="external">External Doc</button>
+      </div>
+      <button type="button" id="modal-close" class="modal-close" aria-label="Close preview">&times;</button>
+    </div>
+    <div class="modal-body">
+      <iframe id="modal-frame-internal" class="modal-frame" title="Internal document preview"></iframe>
+      <iframe id="modal-frame-external" class="modal-frame" title="External document preview" hidden></iframe>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
+<script src="script.js"></script>
+</body>
+</html>
