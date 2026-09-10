@@ -261,9 +261,17 @@ function showToast(message, isError) {
   }, 3200);
 }
 
+/* Appends a cache-busting timestamp so browsers and GitHub Pages' CDN
+   always fetch the latest CSV content instead of serving a stale cached
+   copy after the sheet/file is edited. */
+function withCacheBuster(url) {
+  const sep = url.includes("?") ? "&" : "?";
+  return `${url}${sep}_=${Date.now()}`;
+}
+
 function fetchCSV(url) {
   return new Promise((resolve, reject) => {
-    Papa.parse(url, {
+    Papa.parse(withCacheBuster(url), {
       download: true,
       header: true,
       skipEmptyLines: true,
