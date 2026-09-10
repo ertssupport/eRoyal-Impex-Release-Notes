@@ -8,6 +8,8 @@ const CONFIG = {
   SPECIAL_LICENSE: "ERI00001",
   ROWS_PER_PAGE: 10,
   SESSION_KEY: "rnp_license",
+  THEME_KEY: "rnp_theme",
+  PAGE_SIZE_KEY: "rnp_page_size",
 };
 
 const COLUMNS = {
@@ -42,8 +44,11 @@ const state = {
   allNotes: [],
   filteredNotes: [],
   currentPage: 1,
+  pageSize: CONFIG.ROWS_PER_PAGE,
   searchTerm: "",
-  activeNote: null
+  activeNote: null,
+  sortKey: "dateSort",
+  sortDir: "desc", // "asc" | "desc"
 };
 
 /* DOM References */
@@ -64,6 +69,11 @@ const el = {
   tableStatus: document.getElementById("table-status"),
   pagination: document.getElementById("pagination"),
   syncStatus: document.getElementById("sync-status"),
+  notesTable: document.getElementById("notes-table"),
+  pageSizeSelect: document.getElementById("page-size-select"),
+  exportCsvBtn: document.getElementById("export-csv-btn"),
+  themeToggleGate: document.getElementById("theme-toggle-gate"),
+  themeTogglePortal: document.getElementById("theme-toggle-portal"),
 
   modalBackdrop: document.getElementById("doc-modal"),
   modalTitle: document.getElementById("modal-title"),
@@ -83,16 +93,164 @@ const el = {
 
 /* Initialization */
 document.addEventListener("DOMContentLoaded", () => {
+  initTheme();
+  initPageSize();
   wireGate();
   wireModal();
   wireConfirmDialog();
   wirePortalControls();
+  wireTableSorting();
+  wireKeyboardShortcuts();
+  wireExport();
 
   const savedLicense = sessionStorage.getItem(CONFIG.SESSION_KEY);
   if (savedLicense) {
     enterPortal(savedLicense);
   }
 });
+
+/* ---------------------------------------------------------- */
+/* Theme (dark / light)                                        */
+/* ---------------------------------------------------------- */
+
+function initTheme() {
+  const saved = localStorage.getItem(CONFIG.THEME_KEY);
+  const preferred = saved || (window.matchMedia && window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
+  applyTheme(preferred);
+
+  [el.themeToggleGate, el.themeTogglePortal].forEach((btn) => {
+    if (btn) btn.addEventListener("click", toggleTheme);
+  });
+}
+
+function applyTheme(theme) {
+  document.documentElement.setAttribute("data-theme", theme === "light" ? "light" : "dark");
+}
+
+function toggleTheme() {
+  const current = document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark";
+  const next = current === "light" ? "dark" : "light";
+  applyTheme(next);
+  localStorage.setItem(CONFIG.THEME_KEY, next);
+}
+
+/* ---------------------------------------------------------- */
+/* Rows-per-page control                                       */
+/* ---------------------------------------------------------- */
+
+function initPageSize() {
+  const saved = parseInt(localStorage.getItem(CONFIG.PAGE_SIZE_KEY), 10);
+  const validSizes = [10, 25, 50, 100];
+  state.pageSize = validSizes.includes(saved) ? saved : CONFIG.ROWS_PER_PAGE;
+
+  if (el.pageSizeSelect) {
+    el.pageSizeSelect.value = String(state.pageSize);
+    el.pageSizeSelect.addEventListener("change", () => {
+      const size = parseInt(el.pageSizeSelect.value, 10);
+      state.pageSize = validSizes.includes(size) ? size : CONFIG.ROWS_PER_PAGE;
+      localStorage.setItem(CONFIG.PAGE_SIZE_KEY, String(state.pageSize));
+      state.currentPage = 1;
+      renderTable();
+    });
+  }
+}
+
+/* ---------------------------------------------------------- */
+/* Column sorting                                               */
+/* ---------------------------------------------------------- */
+
+function wireTableSorting() {
+  if (!el.notesTable) return;
+  el.notesTable.querySelectorAll("th.sortable").forEach((th) => {
+    th.addEventListener("click", () => {
+      const key = th.dataset.sortKey;
+      if (state.sortKey === key) {
+        state.sortDir = state.sortDir === "asc" ? "desc" : "asc";
+      } else {
+        state.sortKey = key;
+        state.sortDir = key === "dateSort" ? "desc" : "asc";
+      }
+      updateSortHeaderUI();
+      state.currentPage = 1;
+      applySort();
+      renderTable();
+    });
+  });
+  updateSortHeaderUI();
+}
+
+function updateSortHeaderUI() {
+  if (!el.notesTable) return;
+  el.notesTable.querySelectorAll("th.sortable").forEach((th) => {
+    const isActive = th.dataset.sortKey === state.sortKey;
+    th.classList.toggle("sort-active", isActive);
+    const arrow = th.querySelector(".sort-arrow");
+    if (arrow) arrow.textContent = isActive && state.sortDir === "asc" ? "▴" : "▾";
+  });
+}
+
+function applySort() {
+  const key = state.sortKey;
+  const dir = state.sortDir === "asc" ? 1 : -1;
+
+  state.filteredNotes = [...state.filteredNotes].sort((a, b) => {
+    if (key === "dateSort") {
+      return ((a.dateSort ?? 0) - (b.dateSort ?? 0)) * dir;
+    }
+    const av = (a[key] || "").toString().toLowerCase();
+    const bv = (b[key] || "").toString().toLowerCase();
+    if (av < bv) return -1 * dir;
+    if (av > bv) return 1 * dir;
+    return 0;
+  });
+}
+
+/* ---------------------------------------------------------- */
+/* CSV export of current (filtered/sorted) results             */
+/* ---------------------------------------------------------- */
+
+function wireExport() {
+  if (!el.exportCsvBtn) return;
+  el.exportCsvBtn.addEventListener("click", exportCurrentResults);
+}
+
+function exportCurrentResults() {
+  if (!state.filteredNotes.length) {
+    showToast("Nothing to export.", true);
+    return;
+  }
+
+  const headerRow = ["Release Date", "Module", "Page", "Release Type", "Short Notes"];
+  const rows = state.filteredNotes.map((n) => [n.date, n.module, n.page, n.type, n.notes]);
+  const csv = Papa.unparse([headerRow, ...rows]);
+
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  const stamp = new Date().toISOString().slice(0, 10);
+  a.href = url;
+  a.download = `release-notes-${stamp}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+
+  showToast(`Exported ${state.filteredNotes.length} record${state.filteredNotes.length === 1 ? "" : "s"}.`);
+}
+
+/* ---------------------------------------------------------- */
+/* Keyboard shortcuts                                           */
+/* ---------------------------------------------------------- */
+
+function wireKeyboardShortcuts() {
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "/" || el.portalScreen.hidden) return;
+    const activeTag = (document.activeElement && document.activeElement.tagName) || "";
+    if (activeTag === "INPUT" || activeTag === "TEXTAREA") return;
+    e.preventDefault();
+    el.searchInput.focus();
+  });
+}
 
 /* License Gate */
 function wireGate() {
@@ -348,12 +506,13 @@ function applyFilter() {
       );
     });
   }
+  applySort();
   renderTable();
 }
 
 function renderTable() {
   const total = state.filteredNotes.length;
-  const pageSize = CONFIG.ROWS_PER_PAGE;
+  const pageSize = state.pageSize || CONFIG.ROWS_PER_PAGE;
   const pageCount = Math.max(1, Math.ceil(total / pageSize));
   if (state.currentPage > pageCount) state.currentPage = pageCount;
 
@@ -374,6 +533,7 @@ function renderTable() {
   }
 
   el.resultCount.textContent = total ? `${total} Record${total === 1 ? "" : "s"}` : "";
+  if (el.exportCsvBtn) el.exportCsvBtn.disabled = total === 0;
   renderPagination(pageCount);
 }
 
