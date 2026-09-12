@@ -8,6 +8,13 @@ const CONFIG = {
   SPECIAL_LICENSE: "ERI00001",
   ROWS_PER_PAGE: 10,
   SESSION_KEY: "rnp_license",
+  THEME_KEY: "rnp_theme",
+  /* Client-side gate only — same caveat as the license check: anyone who
+     views this file's source can read this value. It keeps casual visitors
+     out of the Admin panel, it is not real access control. Change this
+     before publishing, and use the special-license + this password
+     together as a two-factor UX gate, not a security boundary. */
+  ADMIN_PASSWORD: "ERoyal@Admin2026",
 };
 
 const COLUMNS = {
@@ -21,6 +28,16 @@ const COLUMNS = {
 };
 
 const LICENSE_COLUMN = "License_Number";
+
+const CSV_COLUMN_ORDER = [
+  COLUMNS.DATE,
+  COLUMNS.MODULE,
+  COLUMNS.PAGE,
+  COLUMNS.TYPE,
+  COLUMNS.NOTES,
+  COLUMNS.DOC_INTERNAL,
+  COLUMNS.DOC_EXTERNAL,
+];
 
 /* Looks up a CSV column value by name, ignoring case, spaces, underscores,
    and hidden characters (like a UTF-8 BOM Excel/Sheets sometimes adds to
@@ -43,7 +60,13 @@ const state = {
   filteredNotes: [],
   currentPage: 1,
   searchTerm: "",
-  activeNote: null
+  activeNote: null,
+
+  /* Admin */
+  isAdmin: false,
+  allRawRows: [],       // source-of-truth rows, keyed exactly like CSV_COLUMN_ORDER
+  editingRow: null,     // raw row object currently open in the form, or null when creating
+  csvFileHandle: null,  // FileSystemFileHandle once the admin connects a local CSV
 };
 
 /* DOM References */
@@ -79,20 +102,95 @@ const el = {
   confirmMessage: document.getElementById("confirm-message"),
   confirmYes: document.getElementById("confirm-yes"),
   confirmNo: document.getElementById("confirm-no"),
+
+  themeToggleGate: document.getElementById("theme-toggle-gate"),
+  themeTogglePortal: document.getElementById("theme-toggle-portal"),
+  themeToggleAdmin: document.getElementById("theme-toggle-admin"),
+
+  adminBtn: document.getElementById("admin-btn"),
+  adminAuthModal: document.getElementById("admin-auth-modal"),
+  adminLoginBox: document.getElementById("admin-login-box"),
+  adminLoginLicense: document.getElementById("admin-login-license"),
+  adminAuthForm: document.getElementById("admin-auth-form"),
+  adminPasswordInput: document.getElementById("admin-password-input"),
+  adminAuthCancel: document.getElementById("admin-auth-cancel"),
+
+  adminScreen: document.getElementById("admin-screen"),
+  adminBackBtn: document.getElementById("admin-back-btn"),
+  adminLogoutBtn: document.getElementById("admin-logout-btn"),
+  addNoteBtn: document.getElementById("add-note-btn"),
+  csvStatus: document.getElementById("csv-status"),
+  csvStatusText: document.getElementById("csv-status-text"),
+  connectCsvBtn: document.getElementById("connect-csv-btn"),
+  adminTableBody: document.getElementById("admin-table-body"),
+  adminTableStatus: document.getElementById("admin-table-status"),
+
+  noteFormModal: document.getElementById("note-form-modal"),
+  noteFormTitle: document.getElementById("note-form-title"),
+  noteFormClose: document.getElementById("note-form-close"),
+  noteForm: document.getElementById("note-form"),
+  noteFormCancel: document.getElementById("note-form-cancel"),
+  noteFormSave: document.getElementById("note-form-save"),
+  fieldDate: document.getElementById("field-date"),
+  fieldModule: document.getElementById("field-module"),
+  fieldPage: document.getElementById("field-page"),
+  fieldType: document.getElementById("field-type"),
+  fieldNotes: document.getElementById("field-notes"),
+  fieldInternal: document.getElementById("field-internal"),
+  fieldExternal: document.getElementById("field-external"),
 };
 
 /* Initialization */
 document.addEventListener("DOMContentLoaded", () => {
+  initTheme();
+  wireThemeToggles();
   wireGate();
   wireModal();
   wireConfirmDialog();
   wirePortalControls();
+  wireAdmin();
+  wireNoteForm();
 
   const savedLicense = sessionStorage.getItem(CONFIG.SESSION_KEY);
   if (savedLicense) {
     enterPortal(savedLicense);
   }
 });
+
+/* ============================================================
+   Theme toggle
+   ============================================================ */
+
+function currentTheme() {
+  return document.documentElement.getAttribute("data-theme") === "light" ? "light" : "dark";
+}
+
+function applyTheme(theme, persist) {
+  if (theme === "light") {
+    document.documentElement.setAttribute("data-theme", "light");
+  } else {
+    document.documentElement.removeAttribute("data-theme");
+  }
+  if (persist) {
+    try { localStorage.setItem(CONFIG.THEME_KEY, theme); } catch (e) { /* storage unavailable */ }
+  }
+}
+
+function initTheme() {
+  let saved = null;
+  try { saved = localStorage.getItem(CONFIG.THEME_KEY); } catch (e) { /* storage unavailable */ }
+  applyTheme(saved === "light" ? "light" : "dark", false);
+}
+
+function toggleTheme() {
+  applyTheme(currentTheme() === "light" ? "dark" : "light", true);
+}
+
+function wireThemeToggles() {
+  [el.themeToggleGate, el.themeTogglePortal, el.themeToggleAdmin].forEach((btn) => {
+    if (btn) btn.addEventListener("click", toggleTheme);
+  });
+}
 
 /* License Gate */
 function wireGate() {
@@ -142,7 +240,9 @@ function enterPortal(licenseValue) {
 
   el.gateScreen.hidden = true;
   el.portalScreen.hidden = false;
+  el.adminScreen.hidden = true;
   el.licenseChipValue.textContent = licenseValue;
+  el.adminBtn.hidden = !state.isSpecialLicense;
 
   loadReleaseNotes();
 }
@@ -196,12 +296,22 @@ function wirePortalControls() {
 function performLogout() {
   sessionStorage.removeItem(CONFIG.SESSION_KEY);
   state.license = null;
+  state.isSpecialLicense = false;
   state.allNotes = [];
   state.filteredNotes = [];
+  state.allRawRows = [];
   state.currentPage = 1;
+
+  state.isAdmin = false;
+  state.csvFileHandle = null;
+  state.editingRow = null;
+  setCsvStatus("idle");
+
   el.searchInput.value = "";
   el.portalScreen.hidden = true;
+  el.adminScreen.hidden = true;
   el.gateScreen.hidden = false;
+  el.adminBtn.hidden = true;
   el.licenseInput.value = "";
   el.licenseInput.focus();
   showToast("Signed out successfully.");
@@ -290,12 +400,8 @@ async function loadReleaseNotes() {
 
   try {
     const rows = await fetchCSV(CONFIG.RELEASE_NOTES_CSV_URL);
-    state.allNotes = rows
-      .map(normalizeRow)
-      .filter((r) => r !== null)
-      .sort((a, b) => (b.dateSort ?? 0) - (a.dateSort ?? 0));
-
-    applyFilter();
+    state.allRawRows = rows.filter((r) => normalizeRow(r) !== null);
+    refreshDerivedNotes();
 
     const now = new Date();
     el.syncStatus.textContent = `Live Synced · Last updated ${now.toLocaleTimeString()}`;
@@ -305,6 +411,19 @@ async function loadReleaseNotes() {
     el.tableStatus.textContent = "Unable to load release notes.";
     el.syncStatus.textContent = "Sync failed.";
   }
+}
+
+/* Rebuilds the display-ready notes list from the raw CSV-shaped rows and
+   re-renders whichever table(s) are relevant. Call this after every
+   admin Create/Update/Delete, and after the initial load. */
+function refreshDerivedNotes() {
+  state.allNotes = state.allRawRows
+    .map(normalizeRow)
+    .filter((r) => r !== null)
+    .sort((a, b) => (b.dateSort ?? 0) - (a.dateSort ?? 0));
+
+  applyFilter();
+  renderAdminTable();
 }
 
 function normalizeRow(row) {
@@ -561,4 +680,409 @@ function pageButton(label, targetPage, disabled) {
     renderTable();
   });
   return btn;
+}
+
+/* ============================================================
+   Admin: auth, CRUD, and CSV persistence
+   ============================================================ */
+
+function wireAdmin() {
+  el.adminBtn.addEventListener("click", () => {
+    if (state.isAdmin) {
+      enterAdminScreen();
+      return;
+    }
+    el.adminLoginLicense.textContent = state.license || "—";
+    el.adminPasswordInput.value = "";
+    el.adminAuthModal.hidden = false;
+    document.body.style.overflow = "hidden";
+    setTimeout(() => el.adminPasswordInput.focus(), 0);
+  });
+
+  el.adminAuthCancel.addEventListener("click", closeAdminAuth);
+  el.adminAuthModal.addEventListener("click", (e) => {
+    if (e.target === el.adminAuthModal) closeAdminAuth();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !el.adminAuthModal.hidden) closeAdminAuth();
+  });
+
+  el.adminAuthForm.addEventListener("submit", (e) => {
+    e.preventDefault();
+
+    if (!state.isSpecialLicense) {
+      showToast("Admin access requires the special license number.", true);
+      closeAdminAuth();
+      return;
+    }
+
+    if (el.adminPasswordInput.value === CONFIG.ADMIN_PASSWORD) {
+      closeAdminAuth();
+      enterAdminScreen();
+    } else {
+      shakeAdminLogin();
+      showToast("Incorrect admin password.", true);
+    }
+  });
+
+  el.adminBackBtn.addEventListener("click", exitAdminScreen);
+
+  el.adminLogoutBtn.addEventListener("click", () => {
+    showConfirm({
+      title: "Sign out of this session?",
+      message: "You'll need to enter your license number again to view release notes.",
+      confirmLabel: "Yes, sign out",
+      cancelLabel: "No, stay signed in",
+      onConfirm: performLogout,
+    });
+  });
+
+  el.addNoteBtn.addEventListener("click", () => openNoteForm(null));
+  el.connectCsvBtn.addEventListener("click", connectCsvFile);
+}
+
+function closeAdminAuth() {
+  el.adminAuthModal.hidden = true;
+  document.body.style.overflow = "";
+}
+
+function shakeAdminLogin() {
+  el.adminLoginBox.classList.remove("shake");
+  void el.adminLoginBox.offsetWidth; /* restart animation */
+  el.adminLoginBox.classList.add("shake");
+}
+
+function enterAdminScreen() {
+  state.isAdmin = true;
+  el.portalScreen.hidden = true;
+  el.adminScreen.hidden = false;
+  el.connectCsvBtn.hidden = !supportsFS();
+  renderAdminTable();
+}
+
+function exitAdminScreen() {
+  el.adminScreen.hidden = true;
+  el.portalScreen.hidden = false;
+}
+
+/* ---- Admin table ---- */
+
+function renderAdminTable() {
+  if (!el.adminTableBody) return;
+
+  const rows = [...state.allRawRows].sort((a, b) => {
+    const da = parseDateForSorting((getCol(a, COLUMNS.DATE) || "").toString());
+    const db = parseDateForSorting((getCol(b, COLUMNS.DATE) || "").toString());
+    return (db ?? 0) - (da ?? 0);
+  });
+
+  el.adminTableBody.innerHTML = "";
+
+  if (rows.length === 0) {
+    el.adminTableStatus.hidden = false;
+    el.adminTableStatus.textContent = "No release notes yet — add your first one.";
+    return;
+  }
+
+  el.adminTableStatus.hidden = true;
+  rows.forEach((row) => el.adminTableBody.appendChild(buildAdminRow(row)));
+}
+
+function buildAdminRow(row) {
+  const date = (getCol(row, COLUMNS.DATE) || "").toString();
+  const module = (getCol(row, COLUMNS.MODULE) || "").toString();
+  const page = (getCol(row, COLUMNS.PAGE) || "").toString();
+  const type = (getCol(row, COLUMNS.TYPE) || "").toString();
+  const notes = (getCol(row, COLUMNS.NOTES) || "").toString();
+  const internal = (getCol(row, COLUMNS.DOC_INTERNAL) || "").toString();
+  const external = (getCol(row, COLUMNS.DOC_EXTERNAL) || "").toString();
+
+  const tr = document.createElement("tr");
+
+  tr.appendChild(td(date, "Release Date", "cell-date"));
+
+  const moduleTd = td("", "Module");
+  moduleTd.appendChild(moduleTag(module));
+  tr.appendChild(moduleTd);
+
+  tr.appendChild(td(page, "Page"));
+
+  const typeTd = td("", "Release Type");
+  typeTd.appendChild(typePill(type));
+  tr.appendChild(typeTd);
+
+  tr.appendChild(td(notes, "Short Notes", "cell-notes-admin"));
+
+  const docTd = td("", "Docs");
+  const docWrap = document.createElement("div");
+  docWrap.className = "doc-status";
+  docWrap.appendChild(docStatusSpan("Internal", !!internal));
+  docWrap.appendChild(docStatusSpan("External", !!external));
+  docTd.appendChild(docWrap);
+  tr.appendChild(docTd);
+
+  const actionsTd = td("", "Actions");
+  const actionsWrap = document.createElement("div");
+  actionsWrap.className = "row-actions";
+  actionsWrap.appendChild(iconButton("edit", "Edit", () => openNoteForm(row)));
+  actionsWrap.appendChild(iconButton("delete", "Delete", () => handleDeleteRow(row)));
+  actionsTd.appendChild(actionsWrap);
+  tr.appendChild(actionsTd);
+
+  return tr;
+}
+
+function docStatusSpan(label, present) {
+  const span = document.createElement("span");
+  span.className = present ? "present" : "";
+  span.textContent = `${label} ${present ? "✓" : "—"}`;
+  return span;
+}
+
+function iconButton(kind, title, onClick) {
+  const btn = document.createElement("button");
+  btn.type = "button";
+  btn.className = "icon-btn" + (kind === "delete" ? " danger" : "");
+  btn.title = title;
+  btn.setAttribute("aria-label", title);
+  btn.innerHTML =
+    kind === "delete"
+      ? '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M3 4.5h10M6.5 4.5V3a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v1.5M4.5 4.5 5 13a1 1 0 0 0 1 .9h4a1 1 0 0 0 1-.9l.5-8.5" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+      : '<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M11.3 2.3a1.5 1.5 0 0 1 2.1 2.1L5.8 12l-3 .8.8-3 7.7-7.5Z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>';
+  btn.addEventListener("click", onClick);
+  return btn;
+}
+
+/* ---- Add / Edit form ---- */
+
+function wireNoteForm() {
+  el.noteFormClose.addEventListener("click", closeNoteForm);
+  el.noteFormCancel.addEventListener("click", closeNoteForm);
+  el.noteFormModal.addEventListener("click", (e) => {
+    if (e.target === el.noteFormModal) closeNoteForm();
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape" && !el.noteFormModal.hidden) closeNoteForm();
+  });
+  el.noteForm.addEventListener("submit", handleNoteFormSubmit);
+}
+
+function clearInjectedOptions(selectEl) {
+  selectEl.querySelectorAll('option[data-injected="1"]').forEach((o) => o.remove());
+}
+
+function ensureSelectHasValue(selectEl, value) {
+  if (!value) return;
+  const exists = Array.from(selectEl.options).some((o) => o.value === value);
+  if (!exists) {
+    const opt = document.createElement("option");
+    opt.value = value;
+    opt.textContent = `${value} (existing value)`;
+    opt.dataset.injected = "1";
+    selectEl.appendChild(opt);
+  }
+}
+
+function openNoteForm(row) {
+  state.editingRow = row;
+  el.noteFormTitle.textContent = row ? "Edit release note" : "Add release note";
+
+  clearInjectedOptions(el.fieldModule);
+  clearInjectedOptions(el.fieldType);
+
+  const moduleVal = row ? (getCol(row, COLUMNS.MODULE) || "").toString() : "Import";
+  const typeVal = row ? (getCol(row, COLUMNS.TYPE) || "").toString() : "New Feature";
+  ensureSelectHasValue(el.fieldModule, moduleVal);
+  ensureSelectHasValue(el.fieldType, typeVal);
+
+  el.fieldDate.value = row ? toISODateInput((getCol(row, COLUMNS.DATE) || "").toString()) : "";
+  el.fieldModule.value = moduleVal;
+  el.fieldPage.value = row ? (getCol(row, COLUMNS.PAGE) || "").toString() : "";
+  el.fieldType.value = typeVal;
+  el.fieldNotes.value = row ? (getCol(row, COLUMNS.NOTES) || "").toString() : "";
+  el.fieldInternal.value = row ? (getCol(row, COLUMNS.DOC_INTERNAL) || "").toString() : "";
+  el.fieldExternal.value = row ? (getCol(row, COLUMNS.DOC_EXTERNAL) || "").toString() : "";
+
+  el.noteFormModal.hidden = false;
+  document.body.style.overflow = "hidden";
+  setTimeout(() => el.fieldDate.focus(), 0);
+}
+
+function closeNoteForm() {
+  el.noteFormModal.hidden = true;
+  document.body.style.overflow = "";
+  state.editingRow = null;
+  el.noteForm.reset();
+}
+
+async function handleNoteFormSubmit(e) {
+  e.preventDefault();
+
+  if (!el.fieldDate.value) {
+    showToast("Please choose a release date.", true);
+    return;
+  }
+
+  const newRow = {};
+  newRow[COLUMNS.DATE] = toDMY(el.fieldDate.value);
+  newRow[COLUMNS.MODULE] = el.fieldModule.value.trim();
+  newRow[COLUMNS.PAGE] = el.fieldPage.value.trim();
+  newRow[COLUMNS.TYPE] = el.fieldType.value.trim();
+  newRow[COLUMNS.NOTES] = el.fieldNotes.value.trim();
+  newRow[COLUMNS.DOC_INTERNAL] = el.fieldInternal.value.trim();
+  newRow[COLUMNS.DOC_EXTERNAL] = el.fieldExternal.value.trim();
+
+  const editingRow = state.editingRow;
+  el.noteFormSave.disabled = true;
+
+  try {
+    if (editingRow) {
+      Object.keys(editingRow).forEach((k) => delete editingRow[k]);
+      Object.assign(editingRow, newRow);
+    } else {
+      state.allRawRows.push(newRow);
+    }
+
+    refreshDerivedNotes();
+    closeNoteForm();
+
+    const result = await persistCSV();
+    showToast(
+      result.method === "file"
+        ? "Saved — written directly to Release_Notes.csv"
+        : "Saved — an updated Release_Notes.csv just downloaded"
+    );
+  } catch (err) {
+    console.error(err);
+    showToast("Something went wrong saving that change.", true);
+  } finally {
+    el.noteFormSave.disabled = false;
+  }
+}
+
+function handleDeleteRow(row) {
+  const page = (getCol(row, COLUMNS.PAGE) || "").toString();
+  const notes = (getCol(row, COLUMNS.NOTES) || "").toString();
+
+  showConfirm({
+    title: "Delete this release note?",
+    message: `${page || "This entry"}${notes ? " — " + notes : ""}`.slice(0, 160),
+    confirmLabel: "Yes, delete",
+    cancelLabel: "Cancel",
+    onConfirm: async () => {
+      const idx = state.allRawRows.indexOf(row);
+      if (idx === -1) return;
+      state.allRawRows.splice(idx, 1);
+      refreshDerivedNotes();
+
+      try {
+        const result = await persistCSV();
+        showToast(
+          result.method === "file"
+            ? "Deleted — saved to Release_Notes.csv"
+            : "Deleted — an updated Release_Notes.csv just downloaded"
+        );
+      } catch (err) {
+        console.error(err);
+        showToast("Something went wrong saving that deletion.", true);
+      }
+    },
+  });
+}
+
+/* ---- Date helpers for the <input type="date"> field ---- */
+
+function toISODateInput(ddmmyyyy) {
+  const m = (ddmmyyyy || "").match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+  if (m) {
+    return `${m[3]}-${m[2].padStart(2, "0")}-${m[1].padStart(2, "0")}`;
+  }
+  const d = new Date(ddmmyyyy);
+  return isNaN(d.getTime()) ? "" : d.toISOString().slice(0, 10);
+}
+
+function toDMY(isoDate) {
+  const [y, m, d] = isoDate.split("-");
+  return `${d}/${m}/${y}`;
+}
+
+/* ---- CSV persistence: File System Access API, with download fallback ---- */
+
+function supportsFS() {
+  return typeof window.showOpenFilePicker === "function";
+}
+
+async function connectCsvFile() {
+  if (!supportsFS()) {
+    showToast("Your browser doesn't support direct file writes — changes will download instead.", true);
+    return;
+  }
+  try {
+    const [handle] = await window.showOpenFilePicker({
+      types: [{ description: "CSV file", accept: { "text/csv": [".csv"] } }],
+      excludeAcceptAllOption: false,
+      multiple: false,
+    });
+    const perm = await handle.requestPermission({ mode: "readwrite" });
+    if (perm !== "granted") throw new Error("Permission not granted");
+
+    state.csvFileHandle = handle;
+    setCsvStatus("connected", handle.name);
+    showToast(`Connected — future edits save straight to ${handle.name}`);
+  } catch (err) {
+    if (err && err.name === "AbortError") return; /* user cancelled the picker */
+    console.error(err);
+    showToast("Couldn't connect that file — edits will download instead.", true);
+  }
+}
+
+async function writeToHandle(handle, text) {
+  const writable = await handle.createWritable();
+  await writable.write(text);
+  await writable.close();
+}
+
+function downloadCSV(text) {
+  const blob = new Blob([text], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "Release_Notes.csv";
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+async function persistCSV() {
+  const csvText = Papa.unparse(state.allRawRows, { columns: CSV_COLUMN_ORDER });
+
+  if (state.csvFileHandle) {
+    try {
+      await writeToHandle(state.csvFileHandle, csvText);
+      setCsvStatus("connected", state.csvFileHandle.name);
+      return { method: "file" };
+    } catch (err) {
+      console.error(err);
+      state.csvFileHandle = null;
+      showToast("Lost access to the connected file — edits will download instead.", true);
+    }
+  }
+
+  downloadCSV(csvText);
+  setCsvStatus("idle");
+  return { method: "download" };
+}
+
+function setCsvStatus(mode, fileName) {
+  if (!el.csvStatus) return;
+  if (mode === "connected") {
+    el.csvStatus.classList.add("connected");
+    el.csvStatusText.textContent = fileName
+      ? `Connected — saving directly to ${fileName}`
+      : "Connected — saving directly to file";
+  } else {
+    el.csvStatus.classList.remove("connected");
+    el.csvStatusText.textContent = "Not connected — changes will download";
+  }
 }
