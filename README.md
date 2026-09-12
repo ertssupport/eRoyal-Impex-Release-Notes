@@ -167,58 +167,6 @@ either sheet.
 
 ---
 
-## Dark / Light theme
-
-A theme toggle (moon/sun icon) sits in the top-right of the gate screen,
-the portal header, and the admin header. The choice is saved in
-`localStorage` per browser, so it's remembered on the next visit. Dark is
-the default.
-
----
-
-## Admin panel
-
-Any license that matches `CONFIG.SPECIAL_LICENSE` (`ERI00001` by default)
-sees an **Admin** button in the portal header. Clicking it asks for a
-second factor — the admin password in `CONFIG.ADMIN_PASSWORD` at the top
-of `script.js` — before opening the Admin screen.
-
-**Change the default password before you deploy this.** Like the license
-gate, this is a client-side UX gate, not real security — anyone who views
-`script.js`'s source can read the password. It's there to keep casual
-visitors out, not to protect sensitive data.
-
-Inside the Admin screen you get full CRUD over the release notes:
-
-- **Create** — "+ Add release note" opens a form for all seven columns.
-- **Read** — the admin table lists every row with its doc-link status.
-- **Update** — the edit (pencil) icon reopens the form pre-filled.
-- **Delete** — the trash icon asks for confirmation, then removes the row.
-
-### How changes reach `Release_Notes.csv`
-
-This is still a static site with no server, so there's no way for the
-browser to silently rewrite a file behind the scenes. Two mechanisms are
-used, in this order:
-
-1. **Direct file write (Chrome/Edge desktop):** click **"Connect CSV
-   file"** once and pick your local `Release_Notes.csv`. Every
-   Create/Update/Delete after that writes straight to the file you picked
-   (the File System Access API). Nothing to download or re-upload — just
-   save your working copy and push/redeploy when ready.
-2. **Auto-download (all other browsers, or if you skip connecting):**
-   every change instantly downloads a fresh `Release_Notes.csv`. Replace
-   the file in your repo with the download and redeploy to publish the
-   change. A status badge in the Admin toolbar always shows which mode is
-   active.
-
-Either way, the on-screen table (both Admin and the public portal, if
-open in another tab of the same session) updates immediately — the file
-write/download is just what makes the change durable and visible to
-other users after the next deploy.
-
----
-
 ## Customizing columns
 
 If your sheet's headers don't match the defaults, edit the top of

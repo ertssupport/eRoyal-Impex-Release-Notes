@@ -8,32 +8,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="style.css">
-<script>
-  /* Applied before first paint so switching themes never flashes the wrong one. */
-  (function () {
-    try {
-      var saved = localStorage.getItem("rnp_theme");
-      if (saved === "light" || saved === "dark") {
-        document.documentElement.setAttribute("data-theme", saved);
-      }
-    } catch (e) {}
-  })();
-</script>
 </head>
 <body>
 
 <!-- ===================== GATE SCREEN ===================== -->
 <main id="gate-screen" class="gate-screen">
-
-  <button type="button" id="theme-toggle-gate" class="theme-toggle gate-theme-toggle" aria-label="Toggle dark or light theme">
-    <svg class="icon-moon" viewBox="0 0 20 20" width="17" height="17" aria-hidden="true">
-      <path d="M16.5 12.3a7 7 0 1 1-8.8-8.8 7 7 0 0 0 8.8 8.8Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
-    </svg>
-    <svg class="icon-sun" viewBox="0 0 20 20" width="17" height="17" aria-hidden="true">
-      <circle cx="10" cy="10" r="4" fill="none" stroke="currentColor" stroke-width="1.5"/>
-      <path d="M10 1.5v2M10 16.5v2M18.5 10h-2M3.5 10h-2M15.9 4.1l-1.4 1.4M5.5 14.5l-1.4 1.4M15.9 15.9l-1.4-1.4M5.5 5.5 4.1 4.1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-    </svg>
-  </button>
 
   <section class="gate-board">
     <div class="board-top">
@@ -161,21 +140,6 @@
         <span class="license-chip-label">License</span>
         <span id="license-chip-value" class="license-chip-value">—</span>
       </div>
-      <button type="button" id="theme-toggle-portal" class="theme-toggle" aria-label="Toggle dark or light theme">
-        <svg class="icon-moon" viewBox="0 0 20 20" width="16" height="16" aria-hidden="true">
-          <path d="M16.5 12.3a7 7 0 1 1-8.8-8.8 7 7 0 0 0 8.8 8.8Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
-        </svg>
-        <svg class="icon-sun" viewBox="0 0 20 20" width="16" height="16" aria-hidden="true">
-          <circle cx="10" cy="10" r="4" fill="none" stroke="currentColor" stroke-width="1.5"/>
-          <path d="M10 1.5v2M10 16.5v2M18.5 10h-2M3.5 10h-2M15.9 4.1l-1.4 1.4M5.5 14.5l-1.4 1.4M15.9 15.9l-1.4-1.4M5.5 5.5 4.1 4.1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-        </svg>
-      </button>
-      <button id="admin-btn" class="btn-ghost admin-btn" type="button" hidden>
-        <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
-          <path d="M8 1.5 2.5 3.6v3.9c0 3.3 2.2 6.2 5.5 7 3.3-.8 5.5-3.7 5.5-7V3.6L8 1.5Z" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/>
-        </svg>
-        Admin
-      </button>
       <button id="logout-btn" class="btn-ghost" type="button">
         <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
           <path d="M6 2H3.5A1.5 1.5 0 0 0 2 3.5v9A1.5 1.5 0 0 0 3.5 14H6M10.5 11.5 14 8l-3.5-3.5M14 8H6" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
@@ -237,146 +201,6 @@
     <div class="modal-body">
       <iframe id="modal-frame-internal" class="modal-frame" title="Internal document preview"></iframe>
       <iframe id="modal-frame-external" class="modal-frame" title="External document preview" hidden></iframe>
-    </div>
-  </div>
-</div>
-
-<!-- ===================== ADMIN LOGIN MODAL ===================== -->
-<div id="admin-auth-modal" class="modal-backdrop confirm-backdrop" hidden>
-  <div class="admin-login-box" id="admin-login-box" role="alertdialog" aria-modal="true" aria-labelledby="admin-login-title">
-    <h2 id="admin-login-title" class="admin-login-title">Admin sign-in</h2>
-    <p class="admin-login-copy">Your license (<span id="admin-login-license">—</span>) unlocks Admin access. Enter the admin password to continue.</p>
-    <form id="admin-auth-form" autocomplete="off">
-      <label for="admin-password-input" class="gate-label">Admin password</label>
-      <input type="password" id="admin-password-input" name="admin-password" placeholder="Admin password" required>
-      <div class="admin-login-actions">
-        <button type="button" id="admin-auth-cancel" class="btn-ghost confirm-btn">Cancel</button>
-        <button type="submit" id="admin-auth-submit" class="btn-primary confirm-btn">Unlock</button>
-      </div>
-    </form>
-  </div>
-</div>
-
-<!-- ===================== ADMIN SCREEN ===================== -->
-<main id="admin-screen" class="portal-screen" hidden>
-
-  <header class="portal-header">
-    <div class="portal-header-left">
-      <p class="portal-eyebrow"><span class="live-dot" aria-hidden="true"></span>Admin mode</p>
-      <h1 class="portal-title">Manage Release Notes</h1>
-    </div>
-    <div class="portal-header-right">
-      <button type="button" id="theme-toggle-admin" class="theme-toggle" aria-label="Toggle dark or light theme">
-        <svg class="icon-moon" viewBox="0 0 20 20" width="16" height="16" aria-hidden="true">
-          <path d="M16.5 12.3a7 7 0 1 1-8.8-8.8 7 7 0 0 0 8.8 8.8Z" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"/>
-        </svg>
-        <svg class="icon-sun" viewBox="0 0 20 20" width="16" height="16" aria-hidden="true">
-          <circle cx="10" cy="10" r="4" fill="none" stroke="currentColor" stroke-width="1.5"/>
-          <path d="M10 1.5v2M10 16.5v2M18.5 10h-2M3.5 10h-2M15.9 4.1l-1.4 1.4M5.5 14.5l-1.4 1.4M15.9 15.9l-1.4-1.4M5.5 5.5 4.1 4.1" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-        </svg>
-      </button>
-      <button id="admin-back-btn" class="btn-ghost" type="button">
-        <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
-          <path d="M9.5 3.5 4 8l5.5 4.5M4 8h8" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-        Back to portal
-      </button>
-      <button id="admin-logout-btn" class="btn-ghost" type="button">
-        <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true">
-          <path d="M6 2H3.5A1.5 1.5 0 0 0 2 3.5v9A1.5 1.5 0 0 0 3.5 14H6M10.5 11.5 14 8l-3.5-3.5M14 8H6" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/>
-        </svg>
-        Sign out
-      </button>
-    </div>
-  </header>
-
-  <div class="admin-toolbar">
-    <div class="admin-toolbar-left">
-      <button type="button" id="add-note-btn" class="btn-primary btn-compact">+ Add release note</button>
-      <div id="csv-status" class="csv-status">
-        <span class="csv-status-dot" aria-hidden="true"></span>
-        <span id="csv-status-text">Not connected — changes will download</span>
-      </div>
-    </div>
-    <div class="admin-toolbar-right">
-      <button type="button" id="connect-csv-btn" class="btn-ghost" hidden>Connect CSV file</button>
-    </div>
-  </div>
-
-  <div class="table-wrap">
-    <table class="notes-table" id="admin-table">
-      <thead>
-        <tr>
-          <th scope="col">Release Date</th>
-          <th scope="col">Module</th>
-          <th scope="col">Page</th>
-          <th scope="col">Release Type</th>
-          <th scope="col">Short Notes</th>
-          <th scope="col">Docs</th>
-          <th scope="col">Actions</th>
-        </tr>
-      </thead>
-      <tbody id="admin-table-body">
-        <!-- Rows dynamically injected -->
-      </tbody>
-    </table>
-    <div id="admin-table-status" class="table-status" hidden></div>
-  </div>
-
-  <p class="admin-empty-hint">Edits update the live table instantly. When a local CSV file is connected, changes are written straight to it; otherwise an updated <code>Release_Notes.csv</code> downloads automatically after each change — replace the file in your repo to publish it.</p>
-</main>
-
-<!-- ===================== ADD / EDIT NOTE MODAL ===================== -->
-<div id="note-form-modal" class="modal-backdrop form-modal" hidden>
-  <div class="modal">
-    <div class="modal-head">
-      <h2 id="note-form-title" class="modal-title">Add release note</h2>
-      <button type="button" id="note-form-close" class="modal-close" aria-label="Close">&times;</button>
-    </div>
-    <div class="modal-body">
-      <form id="note-form" autocomplete="off">
-        <div class="field-grid">
-          <div class="field-group">
-            <label for="field-date">Release date</label>
-            <input type="date" id="field-date" required>
-          </div>
-          <div class="field-group">
-            <label for="field-module">Module</label>
-            <select id="field-module" required>
-              <option value="Import">Import</option>
-              <option value="Export">Export</option>
-              <option value="Both">Both</option>
-            </select>
-          </div>
-          <div class="field-group">
-            <label for="field-page">Page</label>
-            <input type="text" id="field-page" placeholder="e.g. Purchase Orders" required>
-          </div>
-          <div class="field-group">
-            <label for="field-type">Release type</label>
-            <select id="field-type" required>
-              <option value="New Feature">New Feature</option>
-              <option value="Enhancement">Enhancement</option>
-            </select>
-          </div>
-          <div class="field-group span-2">
-            <label for="field-notes">Short notes</label>
-            <textarea id="field-notes" placeholder="One or two sentences describing the change" required></textarea>
-          </div>
-          <div class="field-group span-2">
-            <label for="field-internal">Internal doc link <span class="field-hint">(optional)</span></label>
-            <input type="url" id="field-internal" placeholder="https://drive.google.com/file/d/.../view">
-          </div>
-          <div class="field-group span-2">
-            <label for="field-external">External doc link <span class="field-hint">(optional — shown only to the special license)</span></label>
-            <input type="url" id="field-external" placeholder="https://drive.google.com/file/d/.../view">
-          </div>
-        </div>
-        <div class="form-actions">
-          <button type="button" id="note-form-cancel" class="btn-ghost">Cancel</button>
-          <button type="submit" id="note-form-save" class="btn-primary">Save</button>
-        </div>
-      </form>
     </div>
   </div>
 </div>
